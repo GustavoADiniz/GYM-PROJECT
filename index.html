@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,7 +10,7 @@
          * DESIGN (CSS)
          * Estilo moderno, clean e minimalista.
          */
-        
+
         /* Reset básico */
         * {
             margin: 0;
@@ -24,7 +25,8 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); /* Fundo suave e moderno */
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            /* Fundo suave e moderno */
             color: #333;
         }
 
@@ -49,7 +51,8 @@
             width: 80px;
             height: 80px;
             object-fit: cover;
-            border-radius: 50%; /* Circular */
+            border-radius: 50%;
+            /* Circular */
             margin-bottom: 1.5rem;
             border: 3px solid #e2e8f0;
         }
@@ -94,7 +97,8 @@
         .btn-login {
             width: 100%;
             padding: 0.85rem;
-            background-color: #4299e1; /* Azul moderno */
+            background-color: #4299e1;
+            /* Azul moderno */
             color: white;
             border: none;
             border-radius: 8px;
@@ -111,10 +115,12 @@
 
         /* Mensagem de Erro */
         .error-message {
-            color: #e53e3e; /* Vermelho */
+            color: #e53e3e;
+            /* Vermelho */
             font-size: 0.9rem;
             margin-top: 1rem;
-            min-height: 1.2em; /* Reserva espaço para não pular layout */
+            min-height: 1.2em;
+            /* Reserva espaço para não pular layout */
             opacity: 0;
             transition: opacity 0.3s;
         }
@@ -122,15 +128,15 @@
         .error-message.visible {
             opacity: 1;
         }
-
     </style>
 </head>
+
 <body>
 
     <div class="login-card">
         <!-- Logo centralizada -->
-        <img src="https://ui-avatars.com/api/?name=SaaS+App&background=4299e1&color=fff&size=150" alt="Logo do SaaS" class="logo-img">
-        
+        <img src="imagem/WhatsApp Image 2026-01-11 at 22.06.32.jpeg" alt="Logo do SaaS" class="logo-img">
+
         <h2>Bem-vindo</h2>
 
         <form id="loginForm">
@@ -183,7 +189,7 @@
         const loginForm = document.getElementById('loginForm');
         const msgErro = document.getElementById('msgErro');
 
-        loginForm.addEventListener('submit', function(event) {
+        loginForm.addEventListener('submit', function (event) {
             event.preventDefault(); // Impede o recarregamento da página
 
             // Captura os valores dos inputs
@@ -199,7 +205,7 @@
                 // Verifica se usuário e senha batem
                 if (u.usuario === usuarioInput && u.senha === senhaInput) {
                     usuarioEncontrado = true;
-                    
+
                     // Redireciona para o link específico
                     console.log(`Login com sucesso! Redirecionando ${u.usuario} para ${u.link_de_redirecionamento}`);
                     window.location.href = u.link_de_redirecionamento;
@@ -210,7 +216,7 @@
             // Se não encontrou ninguém
             if (!usuarioEncontrado) {
                 msgErro.classList.add('visible');
-                
+
                 // Opcional: Treme o card ou limpa a senha
                 document.getElementById('senha').value = '';
                 document.getElementById('senha').focus();
@@ -225,4 +231,5 @@
 
     </script>
 </body>
+
 </html>
