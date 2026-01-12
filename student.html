@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meu Treino</title>
+    <link rel="stylesheet" href="css/style.css">
+
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="js/app_global.js"></script>
+
+    <style>
+        .tabs {
+            overflow-x: auto;
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0;
+            padding-bottom: 5px;
+        }
+
+        .tab {
+            padding: 0.75rem 1.25rem;
+            background: #eee;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .tab.active {
+            background: var(--primary);
+            color: white;
+            font-weight: bold;
+        }
+
+        .content {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 0 0 16px 16px;
+            min-height: 300px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="container">
+        <div class="app-header">
+            <div>
+                <h1>Meu Treino</h1>
+                <p>Aluno: <span id="studentName">...</span></p>
+            </div>
+            <button onclick="window.fazerLogout()" class="btn btn-danger btn-sm">Sair</button>
+        </div>
+    </header>
+
+    <main class="container">
+        <div class="tabs">
+            <div class="tab active" onclick="verDia('segunda', this)">Segunda</div>
+            <div class="tab" onclick="verDia('terca', this)">Terça</div>
+            <div class="tab" onclick="verDia('quarta', this)">Quarta</div>
+            <div class="tab" onclick="verDia('quinta', this)">Quinta</div>
+            <div class="tab" onclick="verDia('sexta', this)">Sexta</div>
+            <div class="tab" onclick="verDia('sabado', this)">Sábado</div>
+            <div class="tab" onclick="verDia('domingo', this)">Domingo</div>
+        </div>
+
+        <div class="content" id="treinoContainer">
+            <p style="color: #777;">Carregando...</p>
+        </div>
+    </main>
+
+    <script>
+        window.verificarAuthAluno();
+
+        document.getElementById('studentName').innerText = sessionStorage.getItem("studentName") || 'Aluno';
+        const studentId = sessionStorage.getItem("studentId");
+        const firestore = firebase.firestore();
+
+        let treinoCache = {};
+
+        function carregarTreino() {
+            firestore.collection("workouts").doc(studentId).get().then((doc) => {
+                if (doc.exists) {
+                    treinoCache = doc.data().days || {};
+                    verDia('segunda', document.querySelector('.tab'));
+                } else {
+                    document.getElementById('treinoContainer').innerText = "Nenhum treino encontrado.";
+                }
+            });
+        }
+
+        window.verDia = function (dia, elBtn) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            if (elBtn) elBtn.classList.add('active');
+
+            const container = document.getElementById('treinoContainer');
+            container.innerHTML = '';
+
+            const exercicios = treinoCache[dia] || [];
+
+            if (exercicios.length === 0) {
+                container.innerHTML = '<p>Descanso ou sem treino cadastrado.</p>';
+                return;
+            }
+
+            exercicios.forEach(ex => {
+                const div = document.createElement('div');
+                div.className = 'card';
+                div.style.marginBottom = '1rem';
+                div.style.border = '1px solid #edf2f7';
+
+                let midia = '';
+                if (ex.videoLink) midia += `<a href="${ex.videoLink}" target="_blank" class="btn btn-sm btn-primary">Ver Vídeo</a> `;
+                if (ex.photoLink) midia += `<a href="${ex.photoLink}" target="_blank" class="btn btn-sm" style="background:#718096;color:#fff">Ver Foto</a>`;
+
+                div.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
+                        <div>
+                            <h3 style="color:var(--primary); margin-bottom:0.2rem;">${ex.name}</h3>
+                            <p><strong>${ex.sets}</strong> Séries x <strong>${ex.reps}</strong> Repetições</p>
+                        </div>
+                        <div>${midia}</div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        };
+
+        carregarTreino();
+    </script>
+</body>
+
+</html>

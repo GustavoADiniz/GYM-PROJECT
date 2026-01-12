@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel do Treinador - André</title>
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- Scripts Globais (Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="js/app_global.js"></script>
+
+    <style>
+        .day-tab {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            background: #eee;
+        }
+
+        .day-tab.active {
+            background: var(--white);
+            border-bottom: 2px solid var(--primary);
+            font-weight: bold;
+        }
+
+        .day-content {
+            display: none;
+            border: 1px solid var(--border);
+            border-top: none;
+            padding: 1rem;
+            background: var(--white);
+            border-radius: 0 0 8px 8px;
+        }
+
+        .day-content.active {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="container">
+        <div class="app-header">
+            <div>
+                <h1>Painel do Treinador - André</h1>
+            </div>
+            <div><button onclick="window.fazerLogout()" class="btn btn-danger btn-sm">Sair</button></div>
+        </div>
+    </header>
+
+    <main class="container">
+
+        <!-- Gerenciamento de Alunos -->
+        <div class="card">
+            <h2 style="margin-bottom: 1rem;">Meus Alunos</h2>
+
+            <div class="add-student-form" style="margin-bottom: 1.5rem;">
+                <input type="text" id="novoNome" placeholder="Nome do Aluno">
+                <input type="text" id="novoLogin" placeholder="Login (ex: joao)">
+                <input type="text" id="novaSenha" placeholder="Senha (ex: 1234)">
+                <button onclick="adicionarAluno()" class="btn btn-primary">+ Cadastrar</button>
+            </div>
+
+            <div class="table-container">
+                <table id="tabelaAlunos">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Login</th>
+                            <th>Senha</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Modal Editor de Treino -->
+        <div id="modalTreino" class="card"
+            style="display: none; border: 2px solid var(--primary); position: fixed; top: 5%; left: 5%; width: 90%; height: 90%; overflow-y: auto; z-index: 100;">
+            <div class="app-header" style="box-shadow: none; padding: 0; margin-bottom: 1rem; background: none;">
+                <h3>Editando Treino de: <span id="alunoEmEdicao" style="color: var(--primary);">...</span></h3>
+                <button onclick="salvarEFechar()" class="btn btn-sm">Fechar e Salvar</button>
+            </div>
+
+            <div style="display: flex; gap: 0.5rem; overflow-x: auto;">
+                <div class="day-tab active" onclick="mudarDia('segunda')">Segunda</div>
+                <div class="day-tab" onclick="mudarDia('terca')">Terça</div>
+                <div class="day-tab" onclick="mudarDia('quarta')">Quarta</div>
+                <div class="day-tab" onclick="mudarDia('quinta')">Quinta</div>
+                <div class="day-tab" onclick="mudarDia('sexta')">Sexta</div>
+                <div class="day-tab" onclick="mudarDia('sabado')">Sábado</div>
+                <div class="day-tab" onclick="mudarDia('domingo')">Domingo</div>
+            </div>
+
+            <div id="containerDias"></div>
+        </div>
+
+    </main>
+
+    <script>
+        // Lógica da Página (Usando variáveis globais do app_global.js)
+
+        // Proteção
+        window.verificarAuthDashboard();
+
+        const firestore = firebase.firestore();
+        const tabela = document.querySelector('#tabelaAlunos tbody');
+        const modal = document.getElementById('modalTreino');
+
+        let alunoEdicaoId = null;
+        let diaAtual = 'segunda';
+        let treinoCache = {};
+        const diasSemana = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'];
+
+        function resetCache() {
+            treinoCache = {};
+            diasSemana.forEach(d => treinoCache[d] = []);
+        }
+
+        // --- CRUD ALUNOS ---
+        function carregarAlunos() {
+            tabela.innerHTML = '<tr><td colspan="4">Carregando...</td></tr>';
+            firestore.collection("students").get().then((querySnapshot) => {
+                tabela.innerHTML = '';
+                if (querySnapshot.empty) {
+                    tabela.innerHTML = '<tr><td colspan="4">Nenhum aluno cadastrado.</td></tr>';
+                    return;
+                }
+                querySnapshot.forEach((doc) => {
+                    const aluno = doc.data();
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${aluno.name}</td>
+                        <td>${aluno.login}</td>
+                        <td>${aluno.password}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="abrirEditor('${doc.id}', '${aluno.name}')">Treinos</button>
+                            <button class="btn btn-sm btn-danger" onclick="excluirAluno('${doc.id}')">X</button>
+                        </td>
+                    `;
+                    tabela.appendChild(tr);
+                });
+            }).catch(error => {
+                console.error("Erro ao carregar:", error);
+                if (error.code === 'permission-denied') {
+                    tabela.innerHTML = '<tr><td colspan="4" style="color:red; font-weight:bold;">ERRO DE PERMISSÃO: O Firebase bloqueou o acesso.<br>Verifique se você alterou as Regras para "true" conforme o guia.</td></tr>';
+                    alert("O BANCO DE DADOS ESTÁ BLOQUEADO!\n\nVocê precisa ir no Console do Firebase > Firestore Database > Regras\nE trocar 'false' por 'true'.");
+                } else {
+                    tabela.innerHTML = '<tr><td colspan="4" style="color:red;">Erro ao carregar: ' + error.message + '</td></tr>';
+                }
+            });
+        }
+
+        window.adicionarAluno = function () {
+            const name = document.getElementById('novoNome').value;
+            const login = document.getElementById('novoLogin').value;
+            const password = document.getElementById('novaSenha').value;
+
+            if (!name) return alert("Preencha o nome");
+
+            firestore.collection("students").add({ name, login, password }).then(() => {
+                document.getElementById('novoNome').value = '';
+                document.getElementById('novoLogin').value = '';
+                document.getElementById('novaSenha').value = '';
+                carregarAlunos();
+            }).catch(e => alert("Erro: " + e));
+        };
+
+        window.excluirAluno = function (id) {
+            if (confirm("Excluir?")) {
+                firestore.collection("students").doc(id).delete().then(carregarAlunos);
+            }
+        };
+
+        // --- EDITOR DE TREINOS ---
+        window.abrirEditor = function (id, nome) {
+            alunoEdicaoId = id;
+            document.getElementById('alunoEmEdicao').innerText = nome;
+            modal.style.display = 'block';
+
+            firestore.collection("workouts").doc(id).get().then((doc) => {
+                if (doc.exists) {
+                    treinoCache = doc.data().days || {};
+                    // Preencher buracos vazios
+                    diasSemana.forEach(d => { if (!treinoCache[d]) treinoCache[d] = []; });
+                } else {
+                    resetCache();
+                }
+                mudarDia('segunda');
+            });
+        };
+
+        window.mudarDia = function (dia) {
+            diaAtual = dia;
+            document.querySelectorAll('.day-tab').forEach(el => {
+                el.classList.remove('active');
+                if (el.textContent.toLowerCase().includes(dia.substring(0, 3))) el.classList.add('active');
+            });
+            renderizarDia();
+        };
+
+        function renderizarDia() {
+            const container = document.getElementById('containerDias');
+            container.innerHTML = '';
+
+            const exercicios = treinoCache[diaAtual] || [];
+
+            const divDia = document.createElement('div');
+            divDia.className = 'day-content active';
+            divDia.innerHTML = `
+                <h4 style="margin-bottom:1rem; text-transform: capitalize;">${diaAtual}</h4>
+                <div id="listaExercicio"></div>
+                <button onclick="addExercicioNoDia()" class="btn btn-sm btn-primary" style="margin-top:1rem">+ Exercício</button>
+            `;
+            container.appendChild(divDia);
+
+            const lista = divDia.querySelector(`#listaExercicio`);
+            exercicios.forEach((ex, index) => {
+                const row = document.createElement('div');
+                row.className = 'exercise-row';
+                // Remove estilos inline que agora são classes
+                row.innerHTML = `
+                    <div class="exercise-inputs">
+                        <input type="text" value="${ex.name}" placeholder="Nome Exercício" onchange="updateEx(${index}, 'name', this.value)">
+                        <input type="text" value="${ex.sets}" placeholder="Sets" onchange="updateEx(${index}, 'sets', this.value)">
+                        <input type="text" value="${ex.reps}" placeholder="Reps" onchange="updateEx(${index}, 'reps', this.value)">
+                        <button class="btn btn-sm btn-danger" onclick="removeEx(${index})">X</button>
+                    </div>
+                     <div style="display:grid; grid-template-columns: 1fr; gap: 0.5rem; margin-top: 0.5rem;">
+                        <input type="text" value="${ex.videoLink || ''}" placeholder="Link Vídeo (YouTube)" onchange="updateEx(${index}, 'videoLink', this.value)">
+                        <input type="text" value="${ex.photoLink || ''}" placeholder="Link Foto" onchange="updateEx(${index}, 'photoLink', this.value)">
+                    </div>
+                `;
+                lista.appendChild(row);
+            });
+        }
+
+        window.addExercicioNoDia = function () {
+            if (!treinoCache[diaAtual]) treinoCache[diaAtual] = [];
+            treinoCache[diaAtual].push({ name: '', sets: '', reps: '', videoLink: '', photoLink: '' });
+            renderizarDia();
+        };
+
+        window.updateEx = function (index, field, value) {
+            treinoCache[diaAtual][index][field] = value;
+        };
+
+        window.removeEx = function (index) {
+            treinoCache[diaAtual].splice(index, 1);
+            renderizarDia();
+        };
+
+        window.salvarEFechar = function () {
+            if (!alunoEdicaoId) return;
+            firestore.collection("workouts").doc(alunoEdicaoId).set({
+                days: treinoCache,
+                updatedAt: new Date()
+            }).then(() => {
+                alert("Salvo!");
+                modal.style.display = 'none';
+            }).catch(e => alert("Erro ao salvar: " + e));
+        };
+
+        carregarAlunos();
+
+    </script>
+</body>
+
+</html>
