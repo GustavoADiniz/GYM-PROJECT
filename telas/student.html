@@ -19,6 +19,29 @@
             border-radius: 0 0 16px 16px;
             min-height: 300px;
         }
+
+        .timer-container {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #f7fafc;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .timer-display {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            font-family: monospace;
+        }
+
+        .timer-controls {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+        }
     </style>
 </head>
 
@@ -94,18 +117,110 @@
                 if (ex.videoLink) midia += `<a href="${ex.videoLink}" target="_blank" class="btn btn-sm btn-primary">Ver Vídeo</a> `;
                 if (ex.photoLink) midia += `<a href="${ex.photoLink}" target="_blank" class="btn btn-sm" style="background:#718096;color:#fff">Ver Foto</a>`;
 
+                const rest = ex.restTime || 60;
+                const min = Math.floor(rest / 60).toString().padStart(2, '0');
+                const sec = (rest % 60).toString().padStart(2, '0');
+
                 div.innerHTML = `
                     <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
                         <div>
                             <h3 style="color:var(--primary); margin-bottom:0.2rem;">${ex.name}</h3>
                             <p><strong>${ex.sets}</strong> Séries x <strong>${ex.reps}</strong> Repetições</p>
+                            <p style="font-size: 0.9rem; color: var(--text-muted);">Descanso sugerido: ${rest}s</p>
                         </div>
                         <div>${midia}</div>
+                    </div>
+                    <div class="timer-container" id="timer-${ex.name.replace(/\s+/g, '-')}">
+                        <div class="timer-display">${min}:${sec}</div>
+                        <div class="timer-controls">
+                            <button class="btn btn-sm btn-primary" onclick="toggleTimer(this, ${rest})">Iniciar Descanso</button>
+                            <button class="btn btn-sm" style="background:#718096;color:#fff" onclick="resetTimer(this, ${rest})">Resetar</button>
+                        </div>
                     </div>
                 `;
                 container.appendChild(div);
             });
         };
+
+        let activeTimers = {};
+
+        window.toggleTimer = function (btn, restTime) {
+            const container = btn.closest('.timer-container');
+            const display = container.querySelector('.timer-display');
+            const timerId = container.id;
+
+            if (activeTimers[timerId] && activeTimers[timerId].running) {
+                // Pausar
+                clearInterval(activeTimers[timerId].interval);
+                activeTimers[timerId].running = false;
+                btn.innerText = 'Retomar';
+                btn.classList.remove('btn-danger');
+                btn.classList.add('btn-primary');
+            } else {
+                // Iniciar ou Retomar
+                let timeLeft = (activeTimers[timerId] && activeTimers[timerId].timeLeft) ? activeTimers[timerId].timeLeft : restTime;
+
+                btn.innerText = 'Pausar';
+                btn.classList.remove('btn-primary');
+                btn.classList.add('btn-danger');
+
+                const interval = setInterval(() => {
+                    timeLeft--;
+                    if (activeTimers[timerId]) activeTimers[timerId].timeLeft = timeLeft;
+                    updateDisplay(display, timeLeft);
+
+                    if (timeLeft <= 0) {
+                        clearInterval(interval);
+                        delete activeTimers[timerId];
+                        btn.innerText = 'Iniciar Descanso';
+                        btn.classList.remove('btn-danger');
+                        btn.classList.add('btn-primary');
+                        tocarAlarme();
+                    }
+                }, 1000);
+
+                activeTimers[timerId] = { interval, timeLeft, running: true };
+            }
+        };
+
+        window.resetTimer = function (btn, restTime) {
+            const container = btn.closest('.timer-container');
+            const display = container.querySelector('.timer-display');
+            const timerId = container.id;
+            const startBtn = container.querySelector('.timer-controls button:first-child');
+
+            if (activeTimers[timerId]) {
+                clearInterval(activeTimers[timerId].interval);
+                delete activeTimers[timerId];
+            }
+
+            startBtn.innerText = 'Iniciar Descanso';
+            startBtn.classList.remove('btn-danger');
+            startBtn.classList.add('btn-primary');
+            updateDisplay(display, restTime);
+        };
+
+        function updateDisplay(display, seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            display.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function tocarAlarme() {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // Lá (A5)
+            gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 10); // Toca por 10 segundos ou tempo que for definido
+        }
 
         carregarTreino();
     </script>
