@@ -274,18 +274,25 @@
 
         function tocarAlarme() {
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
 
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
+            // Toca 3 bipes rápidos para chamar a atenção
+            [0, 0.4, 0.8].forEach(delay => {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
 
-            oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // Lá (A5)
-            gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
 
-            oscillator.start();
-            oscillator.stop(audioCtx.currentTime + 10); // Toca por 10 segundos ou tempo que for definido
+                oscillator.type = 'square'; // Som mais 'cortado' de alarme
+                oscillator.frequency.setValueAtTime(880, audioCtx.currentTime + delay);
+
+                gainNode.gain.setValueAtTime(0, audioCtx.currentTime + delay);
+                gainNode.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + delay + 0.05);
+                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + delay + 0.3);
+
+                oscillator.start(audioCtx.currentTime + delay);
+                oscillator.stop(audioCtx.currentTime + delay + 0.3);
+            });
         }
 
         function isExCompleted(nome, dia) {

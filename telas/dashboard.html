@@ -24,8 +24,81 @@
             border-radius: 0 0 8px 8px;
         }
 
+        .exercise-row {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 1rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            transition: all 0.2s;
+        }
+
+        .exercise-row:hover {
+            border-color: var(--primary);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .exercise-inputs {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 0.5rem;
+        }
+
+        @media (max-width: 600px) {
+            .exercise-inputs {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
         .day-content.active {
             display: block;
+        }
+
+        /* Toast de Notificação */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: var(--success);
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 1000;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-weight: 600;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        #toast.show {
+            visibility: visible;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        }
+
+        @keyframes fadein {
+            from {
+                bottom: 0;
+                opacity: 0;
+            }
+
+            to {
+                bottom: 30px;
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeout {
+            from {
+                bottom: 30px;
+                opacity: 1;
+            }
+
+            to {
+                bottom: 0;
+                opacity: 0;
+            }
         }
     </style>
 </head>
@@ -121,7 +194,26 @@
             </div>
         </div>
 
+        <!-- Modal: Editar Aluno -->
+        <div id="modalEditarAluno" class="card"
+            style="display: none; border: 2px solid var(--primary); position: fixed; top: 20%; left: 50%; width: 400px; transform: translateX(-50%); z-index: 101;">
+            <h3>Editar Aluno</h3>
+            <p style="margin-bottom: 1rem; font-size: 0.9rem; color: var(--text-muted);">Altere as informações do aluno.
+            </p>
+
+            <input type="text" id="editNome" placeholder="Nome do Aluno">
+            <input type="text" id="editLogin" placeholder="Login">
+            <input type="text" id="editSenha" placeholder="Nova Senha (deixe em branco para manter)">
+
+            <div style="display:flex; gap:0.5rem; margin-top: 1rem;">
+                <button onclick="salvarEdicaoAluno()" class="btn btn-primary" style="flex:1">Salvar Alterações</button>
+                <button onclick="fecharEdicaoAluno()" class="btn btn-sm" style="flex:1">Cancelar</button>
+            </div>
+        </div>
+
     </main>
+
+    <div id="toast">Operação concluída!</div>
 
     <script>
         // Lógica da Página (Utilizando variáveis e funções do app_global.js)
@@ -191,6 +283,7 @@
                     <td>${aluno.login}</td>
                     <td>${aluno.passwordPlain || aluno.password}</td>
                     <td>
+                        <button class="btn btn-sm" style="background:var(--text-muted); color:white" onclick="abrirEdicaoAluno('${aluno.id}')">Editar</button>
                         <button class="btn btn-sm btn-primary" onclick="abrirEditor('${aluno.id}', '${aluno.name}')">Treinos</button>
                         <button class="btn btn-sm btn-danger" onclick="excluirAluno('${aluno.id}')">X</button>
                     </td>
@@ -244,7 +337,54 @@
          */
         window.excluirAluno = function (id) {
             if (confirm("Excluir este aluno definitivamente?")) {
-                firestore.collection("students").doc(id).delete().then(carregarAlunos);
+                firestore.collection("students").doc(id).delete().then(() => {
+                    carregarAlunos();
+                    showToast("Aluno excluído. 🗑️");
+                });
+            }
+        };
+
+        // --- EDIÇÃO DE PERFIL DO ALUNO ---
+
+        let alunoPerfilId = null;
+
+        window.abrirEdicaoAluno = function (id) {
+            const aluno = alunosLocal.find(a => a.id === id);
+            if (!aluno) return;
+
+            alunoPerfilId = id;
+            document.getElementById('editNome').value = aluno.name;
+            document.getElementById('editLogin').value = aluno.login;
+            document.getElementById('editSenha').value = ''; // Sempre limpo por segurança
+            document.getElementById('modalEditarAluno').style.display = 'block';
+        };
+
+        window.fecharEdicaoAluno = function () {
+            document.getElementById('modalEditarAluno').style.display = 'none';
+        };
+
+        window.salvarEdicaoAluno = async function () {
+            const nome = document.getElementById('editNome').value.trim();
+            const login = document.getElementById('editLogin').value.trim();
+            const novaSenha = document.getElementById('editSenha').value.trim();
+
+            if (!nome || !login) return alert("Preencha nome e login.");
+
+            const updates = { name: nome, login: login };
+
+            try {
+                if (novaSenha) {
+                    updates.password = await window.hashSenha(novaSenha);
+                    updates.passwordPlain = novaSenha; // Atualiza o texto puro para o treinador
+                }
+
+                await firestore.collection("students").doc(alunoPerfilId).update(updates);
+
+                showToast("Perfil atualizado! ✅");
+                fecharEdicaoAluno();
+                carregarAlunos();
+            } catch (e) {
+                alert("Erro ao editar: " + e.message);
             }
         };
 
@@ -324,16 +464,35 @@
                 const row = document.createElement('div');
                 row.className = 'exercise-row';
                 row.innerHTML = `
+                    <div style="margin-bottom: 0.5rem; font-weight: bold; color: var(--primary);">#${index + 1} - Exercício</div>
                     <div class="exercise-inputs">
-                        <input type="text" value="${ex.name}" placeholder="Nome do Exercício" onchange="updateEx(${index}, 'name', this.value)">
-                        <input type="text" value="${ex.sets}" placeholder="Séries" onchange="updateEx(${index}, 'sets', this.value)">
-                        <input type="text" value="${ex.reps}" placeholder="Repetições" onchange="updateEx(${index}, 'reps', this.value)">
-                        <input type="number" value="${ex.restTime || 60}" placeholder="Descanso (s)" title="Tempo em segundos" onchange="updateEx(${index}, 'restTime', this.value)">
+                        <div>
+                            <label style="font-size:0.7rem; color:var(--text-muted);">Nome</label>
+                            <input type="text" value="${ex.name}" placeholder="Ex: Supino Reto" onchange="updateEx(${index}, 'name', this.value)" style="width:100%">
+                        </div>
+                        <div>
+                            <label style="font-size:0.7rem; color:var(--text-muted);">Séries</label>
+                            <input type="text" value="${ex.sets}" placeholder="4" onchange="updateEx(${index}, 'sets', this.value)" style="width:100%">
+                        </div>
+                        <div>
+                            <label style="font-size:0.7rem; color:var(--text-muted);">Reps</label>
+                            <input type="text" value="${ex.reps}" placeholder="12" onchange="updateEx(${index}, 'reps', this.value)" style="width:100%">
+                        </div>
+                        <div>
+                            <label style="font-size:0.7rem; color:var(--text-muted);">Desc.(s)</label>
+                            <input type="number" value="${ex.restTime || 60}" placeholder="60" onchange="updateEx(${index}, 'restTime', this.value)" style="width:100%">
+                        </div>
                     </div>
-                    <div style="display:grid; grid-template-columns: 1fr; gap: 0.5rem; margin-top: 0.5rem;">
-                        <input type="text" value="${ex.videoLink || ''}" placeholder="Link Vídeo (YouTube)" onchange="updateEx(${index}, 'videoLink', this.value)">
-                        <input type="text" value="${ex.photoLink || ''}" placeholder="Link Foto (URL)" onchange="updateEx(${index}, 'photoLink', this.value)">
-                        <button class="btn btn-sm btn-danger" onclick="removeEx(${index})">Remover Exercício</button>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr auto; gap: 0.5rem; margin-top: 0.5rem; align-items: end;">
+                        <div>
+                            <label style="font-size:0.7rem; color:var(--text-muted);">Vídeo (URL)</label>
+                            <input type="text" value="${ex.videoLink || ''}" placeholder="Link YouTube" onchange="updateEx(${index}, 'videoLink', this.value)" style="width:100%">
+                        </div>
+                        <div>
+                            <label style="font-size:0.7rem; color:var(--text-muted);">Foto (URL)</label>
+                            <input type="text" value="${ex.photoLink || ''}" placeholder="URL da Imagem" onchange="updateEx(${index}, 'photoLink', this.value)" style="width:100%">
+                        </div>
+                        <button class="btn btn-sm btn-danger" onclick="removeEx(${index})" style="height: 38px;">Remover</button>
                     </div>
                 `;
                 lista.appendChild(row);
@@ -374,12 +533,19 @@
                 days: treinoCache,
                 updatedAt: new Date()
             }).then(() => {
-                alert("Treino salvo com sucesso!");
+                showToast("Treino salvo com sucesso! ✅");
                 modal.style.display = 'none';
             }).catch(e => alert("Erro ao salvar: " + e));
         };
 
         // --- CONFIGURAÇÕES DA CONTA ---
+
+        window.showToast = function (msg) {
+            const toast = document.getElementById("toast");
+            toast.innerText = msg;
+            toast.className = "show";
+            setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 3000);
+        };
 
         window.abrirConfig = function () {
             document.getElementById('modalConfig').style.display = 'block';
@@ -412,7 +578,7 @@
                     });
                 }
 
-                alert("Credenciais atualizadas com sucesso! Use-as no próximo login.");
+                showToast("Credenciais atualizadas! ✅");
                 fecharConfig();
             } catch (e) {
                 alert("Erro ao salvar configurações: " + e.message);
