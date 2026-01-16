@@ -124,12 +124,23 @@
         <div class="card">
             <h2 style="margin-bottom: 1rem;">Meus Alunos</h2>
 
-            <!-- Formulário para cadastrar novo aluno -->
-            <div class="add-student-form" style="margin-bottom: 1.5rem;">
-                <input type="text" id="novoNome" placeholder="Nome do Aluno">
-                <input type="text" id="novoLogin" placeholder="Login (ex: joao)">
-                <input type="text" id="novaSenha" placeholder="Senha (ex: 1234)">
-                <button onclick="adicionarAluno()" class="btn btn-primary">+ Cadastrar</button>
+            <!-- Botão para abrir o formulário de cadastro -->
+            <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Gerencie seus alunos e treinos.</p>
+                <button onclick="toggleFormAluno()" class="btn btn-primary">+ Novo Aluno</button>
+            </div>
+
+            <!-- Formulário para cadastrar novo aluno (escondido por padrão) -->
+            <div id="formNovoAluno" class="card"
+                style="display: none; background: #f8fafc; border: 1px solid var(--border); margin-bottom: 1.5rem;">
+                <h4 style="margin-bottom: 1rem;">Cadastrar Novo Aluno</h4>
+                <div class="add-student-form"
+                    style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 0.5rem;">
+                    <input type="text" id="novoNome" placeholder="Nome do Aluno">
+                    <input type="text" id="novoLogin" placeholder="Login (ex: joao)">
+                    <input type="text" id="novaSenha" placeholder="Senha (ex: 1234)">
+                    <button onclick="adicionarAluno()" class="btn btn-primary">Salvar</button>
+                </div>
             </div>
 
             <!-- Campo de busca instantânea -->
@@ -265,6 +276,11 @@
             });
         }
 
+        window.toggleFormAluno = function () {
+            const form = document.getElementById('formNovoAluno');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        };
+
         /**
          * Renderiza as linhas da tabela de alunos com base em uma lista (filtro ou completa)
          */
@@ -325,8 +341,9 @@
                 document.getElementById('novoNome').value = '';
                 document.getElementById('novoLogin').value = '';
                 document.getElementById('novaSenha').value = '';
+                toggleFormAluno(); // Esconde o formulário após salvar
                 carregarAlunos();
-                alert("Aluno cadastrado com sucesso!");
+                showToast("Aluno cadastrado com sucesso! 👤");
             } catch (e) {
                 alert("Erro ao cadastrar: " + e.message);
             }
