@@ -76,6 +76,40 @@
             width: 100%;
             margin-top: 1rem;
         }
+
+        /* Container para vídeos e fotos embutidos */
+        .media-container {
+            position: relative;
+            width: 100%;
+            max-width: 300px;
+            /* Reduz o tamanho máximo */
+            padding-bottom: 56.25%;
+            /* 16:9 Ratio */
+            height: 0;
+            margin: 1rem auto;
+            /* Centraliza e dá margem */
+            border-radius: 12px;
+            overflow: hidden;
+            background: #eee;
+            border: 1px solid var(--border);
+        }
+
+        .media-container iframe,
+        .media-container img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            object-fit: cover;
+        }
+
+        .media-tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
     </style>
 </head>
 
@@ -172,13 +206,33 @@
                 div.style.marginBottom = '1rem';
                 div.style.border = '1px solid #edf2f7';
 
-                // Verifica se está concluído hoje (usando o id do exercício ou nome)
                 const isCompleted = isExCompleted(ex.name, dia);
                 if (isCompleted) div.classList.add('completed-exercise');
 
-                let midia = '';
-                if (ex.videoLink) midia += `<a href="${ex.videoLink}" target="_blank" class="btn btn-sm btn-primary">Ver Vídeo</a> `;
-                if (ex.photoLink) midia += `<a href="${ex.photoLink}" target="_blank" class="btn btn-sm" style="background:#718096;color:#fff">Ver Foto</a>`;
+                // Lógica de Mídia Embutida
+                let midiaHtml = '';
+                if (ex.videoLink) {
+                    const embedUrl = getEmbedUrl(ex.videoLink);
+                    midiaHtml += `
+                        <div class="media-container" style="margin-bottom: 0.5rem;">
+                            <iframe src="${embedUrl}" title="Vídeo do exercício" 
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                                allowfullscreen></iframe>
+                        </div>
+                        <div style="text-align:center; margin-bottom: 1rem;">
+                            <a href="${ex.videoLink}" target="_blank" style="font-size: 0.8rem; color: var(--primary); text-decoration: none;">
+                                📺 Abrir vídeo caso não carregue
+                            </a>
+                        </div>
+                    `;
+                }
+                if (ex.photoLink) {
+                    midiaHtml += `
+                        <div class="media-container">
+                            <img src="${ex.photoLink}" alt="Demonstração">
+                        </div>
+                    `;
+                }
 
                 const rest = ex.restTime || 60;
                 const min = Math.floor(rest / 60).toString().padStart(2, '0');
@@ -191,8 +245,10 @@
                             <p><strong>${ex.sets}</strong> Séries x <strong>${ex.reps}</strong> Repetições</p>
                             <p style="font-size: 0.9rem; font-weight: bold; color: var(--primary);">${rest}s</p>
                         </div>
-                        <div>${midia}</div>
                     </div>
+                    
+                    ${midiaHtml}
+
                     <div class="timer-container" id="timer-${ex.name.replace(/\s+/g, '-')}">
                         <div class="timer-display">${min}:${sec}</div>
                         <div class="timer-controls">
@@ -207,6 +263,23 @@
                 container.appendChild(div);
             });
         };
+
+        /**
+         * Converte links normais do YouTube para o formato de embed (iframe)
+         */
+        function getEmbedUrl(url) {
+            if (!url) return '';
+            if (url.includes('youtube.com/embed/')) return url;
+
+            // Regex robusta para capturar IDs de vídeos do YouTube em diversos formatos
+            const regExp = /^.*(?:(?:youtu\.be\/|v\/|vi\/|u\/\w\/|embed\/|shorts\/)|(?:(?:watch)?\?v(?:i)?=|\&v(?:i)?=))([^#\&\?]*).*/;
+            const match = url.match(regExp);
+
+            if (match && match[1] && match[1].length === 11) {
+                return `https://www.youtube-nocookie.com/embed/${match[1]}?rel=0&modestbranding=1`;
+            }
+            return url;
+        }
 
         let activeTimers = {};
 
