@@ -37,4 +37,14 @@ O GYM-PRO foi arquitetado para ser leve e escalável, eliminando dependências p
 ## 📈 Status do Projeto
 O sistema encontra-se na versão **quase completa**, com core business totalmente funcional e pronto para uso profissional.
 
+## 🗺️ Roadmap e Planos Futuros
+
+Para conhecer as funcionalidades planejadas e a evolução do projeto, consulte o **[ROADMAP.md](ROADMAP.md)**.
+
+O roadmap inclui:
+- 20+ funcionalidades organizadas por prioridade
+- Estimativas de tempo de desenvolvimento
+- Divisão em 5 fases de implementação
+- Melhorias de UX, performance e acessibilidade
+
 Desenvolvido para transformar a gestão esportiva em uma experiência tecnológica de elite.
