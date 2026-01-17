@@ -32,7 +32,21 @@ function isExCompleted(exerciseName, day) {
 }
 
 window.carregarTreino = async function () {
-    if (!studentId) return;
+    const container = document.getElementById('treinoContainer');
+
+    // Verifica se o aluno está logado
+    if (!studentId) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 3rem; color: var(--danger);">
+                <i class="bi bi-exclamation-triangle" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                <h3>Sessão Expirada</h3>
+                <p>Por favor, faça login novamente.</p>
+                <a href="../index.html" class="btn btn-primary mt-3">Voltar ao Login</a>
+            </div>
+        `;
+        return;
+    }
+
     try {
         const docSnap = await getDoc(doc(db, "workouts", studentId));
         if (docSnap.exists()) {
@@ -51,7 +65,13 @@ window.carregarTreino = async function () {
 
             window.verDia(diaHj, tabHj);
         } else {
-            document.getElementById('treinoContainer').innerText = "Nenhum treino encontrado.";
+            container.innerHTML = `
+                <div style="text-align: center; padding: 3rem; color: var(--text-muted);">
+                    <i class="bi bi-calendar-x" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                    <h3>Nenhum treino cadastrado</h3>
+                    <p>Seu treinador ainda não criou treinos para você.</p>
+                </div>
+            `;
         }
 
         // --- CARREGA PROGRESSO DO CLOUD ---
@@ -73,6 +93,45 @@ window.carregarTreino = async function () {
         }
     } catch (e) {
         console.error("Erro ao carregar treino/progresso:", e);
+
+        // Exibe mensagem específica baseada no tipo de erro
+        let errorMessage = '<i class="bi bi-exclamation-circle" style="font-size: 3rem; margin-bottom: 1rem; color: var(--danger);"></i>';
+
+        if (e.code === 'permission-denied') {
+            errorMessage += `
+                <h3>Erro de Permissão</h3>
+                <p><strong>O acesso ao banco de dados foi bloqueado.</strong></p>
+                <p style="font-size: 0.9rem; color: var(--text-muted);">
+                    Isso pode ocorrer se o domínio não estiver autorizado no Firebase.<br>
+                    Entre em contato com o administrador do sistema.
+                </p>
+            `;
+        } else if (e.message.includes('auth/unauthorized-domain')) {
+            errorMessage += `
+                <h3>Domínio Não Autorizado</h3>
+                <p><strong>Este site precisa ser configurado no Firebase.</strong></p>
+                <p style="font-size: 0.9rem; color: var(--text-muted);">
+                    Código do erro: auth/unauthorized-domain
+                </p>
+            `;
+        } else {
+            errorMessage += `
+                <h3>Erro de Conexão</h3>
+                <p>Não foi possível carregar seus treinos.</p>
+                <p style="font-size: 0.9rem; color: var(--text-muted);">
+                    ${e.message || 'Erro desconhecido'}
+                </p>
+            `;
+        }
+
+        container.innerHTML = `
+            <div style="text-align: center; padding: 3rem;">
+                ${errorMessage}
+                <button onclick="window.carregarTreino()" class="btn btn-primary mt-3">
+                    <i class="bi bi-arrow-clockwise me-2"></i>Tentar Novamente
+                </button>
+            </div>
+        `;
     }
 }
 
@@ -266,15 +325,6 @@ function tocarAlarme() {
     });
 }
 
-function isExCompleted(nome, dia) {
-    // Tenta ler do cache (Firestore) primeiro
-    if (progressoCache[dia] && progressoCache[dia].includes(nome)) return true;
-
-    // Fallback para localStorage (legado ou offline temporário)
-    const hoje = new Date().toISOString().split('T')[0];
-    const logs = JSON.parse(localStorage.getItem(`progress_${studentId}_${hoje}`) || '{}');
-    return logs[dia] && logs[dia].includes(nome);
-}
 
 window.toggleConcluido = async function (nome, dia, index) {
     const hoje = new Date().toISOString().split('T')[0];

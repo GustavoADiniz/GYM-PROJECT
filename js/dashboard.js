@@ -45,10 +45,12 @@ window.carregarAlunos = async function () {
     } catch (error) {
         console.error("Erro ao carregar:", error);
         if (error.code === 'permission-denied') {
-            tabela.innerHTML = '<tr><td colspan="4" style="color:red; font-weight:bold;">ERRO DE PERMISSÃO: O Firebase bloqueou o acesso.</td></tr>';
-            alert("O BANCO DE DADOS ESTÁ BLOQUEADO!");
+            tabela.innerHTML = '<tr><td colspan="4" style="color:red; font-weight:bold; padding: 2rem; text-align:center;">❌ ERRO DE PERMISSÃO: O Firebase bloqueou o acesso. Verifique se o domínio está autorizado nas configurações do Firebase.</td></tr>';
+            alert("⚠️ ERRO CRÍTICO: O domínio não está autorizado no Firebase. Entre em contato com o desenvolvedor.");
+        } else if (error.message.includes('auth/unauthorized-domain')) {
+            tabela.innerHTML = '<tr><td colspan="4" style="color:red; font-weight:bold; padding: 2rem; text-align:center;">🔒 DOMÍNIO NÃO AUTORIZADO: Configure matheusmontev.github.io no Firebase Console (Authentication > Authorized Domains).</td></tr>';
         } else {
-            tabela.innerHTML = '<tr><td colspan="4" style="color:red;">Erro ao carregar: ' + error.message + '</td></tr>';
+            tabela.innerHTML = '<tr><td colspan="4" style="color:red; text-align:center; padding: 2rem;">Erro ao carregar: ' + error.message + '</td></tr>';
         }
     }
 };
